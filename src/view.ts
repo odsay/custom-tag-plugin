@@ -66,14 +66,59 @@ export class CustomTagView extends ItemView {
             li.createSpan({ text: ` (${count})`, style: "font-size: 0.85em; opacity: 0.7;" });
             
             // --- 클릭 기능 추가: 왼쪽 사이드바 검색창 연동 ---
-            li.onclick = () => {
-                const searchPlugin = (this.app as any).internalPlugins.getPluginById("global-search");
-                if (searchPlugin && searchPlugin.instance) {
-                    // 검색 결과창 열기 및 검색어 입력
-                    searchPlugin.instance.openSearch(`"${tag}"`);
+            li.onclick = async () => {
+                const query = `"${tag}"`;
+
+                // 1. 검색 창 강제 활성화 (이미 열려있으면 포커스, 없으면 생성)
+                await this.app.commands.executeCommandById("global-search:open");
+
+                // 2. 검색 뷰가 준비될 때까지 잠시 대기
+                await new Promise(resolve => setTimeout(resolve, 150));
+
+                // 3. Workspace 전체에서 검색 뷰(Leaf)를 직접 탐색
+                let searchLeaf = this.app.workspace.getLeavesOfType("search")[0];
+                
+                if (!searchLeaf) {
+                    // 만약 그래도 없다면, 한 번 더 시도 (모바일이나 느린 PC 대응)
+                    await this.app.commands.executeCommandById("global-search:open");
+                    searchLeaf = this.app.workspace.getLeavesOfType("search")[0];
+                }
+
+                if (searchLeaf && searchLeaf.view) {
+                    const searchView = searchLeaf.view as any;
+
+                    // 4. 검색 결과창으로 시점 전환
+                    this.app.workspace.revealLeaf(searchLeaf);
+
+                    // 5. 검색어 주입 및 실행 (가장 확실한 방법 조합)
+                    try {
+                        // 방법 1: 직접 Query 설정
+                        if (searchView.setQuery) {
+                            searchView.setQuery(query);
+                        }
+
+                        // 방법 2: DOM Input 요소에 강제 주입 (UI 갱신용)
+                        const inputEl = searchView.searchComponent?.inputEl || 
+                                        searchView.containerEl.querySelector("input");
+                        
+                        if (inputEl) {
+                            inputEl.value = query;
+                            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            inputEl.focus();
+                        }
+
+                        // 방법 3: 검색 실행 트리거 호출
+                        if (searchView.onQueryChanged) {
+                            searchView.onQueryChanged();
+                        } else if (searchView.startSearch) {
+                            searchView.startSearch();
+                        }
+                    } catch (e) {
+                        console.error("검색어 주입 중 에러 발생:", e);
+                    }
                 } else {
-                    // 대체 방법: 명령어를 통한 검색창 열기 (플러그인 접근이 막힌 경우)
-                    this.app.commands.executeCommandById("global-search:open");
+                    new Notice("검색창을 활성화할 수 없습니다. 핵심 플러그인의 'Search'가 켜져 있는지 확인하세요.");
                 }
             };
         });
