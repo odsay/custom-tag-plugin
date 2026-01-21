@@ -29,7 +29,7 @@ export class CustomTagView extends ItemView {
         const controlsContainer = container.createEl("div", { style: "margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;" });
         
         // 기호 필터 버튼 그룹
-        const filterGroup = controlsContainer.createEl("div", { style: "display: flex; gap: 5px;" });
+        const filterGroup = controlsContainer.createEl("div", { style: "display: flex; gap: 10px;" });
         const symbols: ("ALL" | "$" | "&" | "%")[] = ["ALL", "$", "&", "%"];
         
         symbols.forEach(sym => {
