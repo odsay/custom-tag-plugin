@@ -36,93 +36,91 @@ export class CustomTagView extends ItemView {
 
     // 화면을 그리는 메인 함수
     async render() {
-        const container = this.containerEl.children[1];
-        container.empty();
-        container.createEl("h4", { text: "$. 태그 통계 (실시간)" });
+            const container = this.containerEl.children[1];
+            container.empty();
+            
+            // 상단 헤더 스타일링
+            container.createEl("h4", { 
+                text: "$. 장소 태그 통계", 
+                style: "margin-bottom: 16px; color: var(--text-muted); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em;" 
+            });
 
-        const listEl = container.createEl("div", { cls: "custom-tag-list" });
-        
-        // 데이터 수집
-        const tagCounts = await this.getTagCounts();
-        const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
-
-        if (sortedTags.length === 0) {
-            listEl.createEl("p", { text: "검색된 태그가 없습니다.", style: "color: gray; font-size: 0.9em;" });
-            return;
-        }
-
-        const ul = listEl.createEl("ul", { style: "list-style: none; padding: 0;" });
-        
-        sortedTags.forEach(([tag, count]) => {
-            const li = ul.createEl("li", { 
-                style: "cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;" 
+            const listEl = container.createEl("div", { 
+                style: "display: flex; flex-wrap: wrap; gap: 8px;" // 버튼들이 나란히 배치되도록 설정
             });
             
-            // 호버 효과 (CSS 없이 Vanilla JS로 간단히 처리)
-            li.onmouseenter = () => li.style.backgroundColor = "var(--background-modifier-hover)";
-            li.onmouseleave = () => li.style.backgroundColor = "transparent";
+            const tagCounts = await this.getTagCounts();
+            const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
 
-            li.createEl("b", { text: tag, style: "color: var(--text-accent);" });
-            li.createSpan({ text: ` (${count})`, style: "font-size: 0.85em; opacity: 0.7;" });
-            
-            // --- 클릭 기능 추가: 왼쪽 사이드바 검색창 연동 ---
-            li.onclick = async () => {
-                const query = `"${tag}"`;
+            if (sortedTags.length === 0) {
+                listEl.createEl("p", { text: "검색된 태그가 없습니다.", style: "color: var(--text-faint); font-style: italic;" });
+                return;
+            }
 
-                // 1. 검색 창 강제 활성화 (이미 열려있으면 포커스, 없으면 생성)
-                await this.app.commands.executeCommandById("global-search:open");
+            sortedTags.forEach(([tag, count]) => {
+                // 태그 버튼 생성
+                const tagBtn = listEl.createEl("div", {
+                    style: `
+                        cursor: pointer;
+                        background-color: var(--pill-background);
+                        border: 1px solid var(--pill-border);
+                        border-radius: var(--pill-radius);
+                        padding: 4px 10px;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        font-size: var(--font-adaptive-small);
+                        transition: all 0.2s ease;
+                    `
+                });
 
-                // 2. 검색 뷰가 준비될 때까지 잠시 대기
-                await new Promise(resolve => setTimeout(resolve, 150));
+                // 태그 텍스트 ($.장소)
+                tagBtn.createSpan({ 
+                    text: tag, 
+                    style: "color: var(--text-accent); font-weight: var(--font-semibold);" 
+                });
 
-                // 3. Workspace 전체에서 검색 뷰(Leaf)를 직접 탐색
-                let searchLeaf = this.app.workspace.getLeavesOfType("search")[0];
-                
-                if (!searchLeaf) {
-                    // 만약 그래도 없다면, 한 번 더 시도 (모바일이나 느린 PC 대응)
+                // 개수 배지 (숫자 부분)
+                tagBtn.createSpan({ 
+                    text: `${count}`, 
+                    style: "color: var(--text-muted); font-size: 0.85em; background: var(--background-secondary); padding: 1px 6px; border-radius: 10px;" 
+                });
+
+                // 마우스 상호작용 효과
+                tagBtn.onmouseenter = () => {
+                    tagBtn.style.backgroundColor = "var(--background-modifier-hover)";
+                    tagBtn.style.transform = "translateY(-1px)";
+                    tagBtn.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+                };
+                tagBtn.onmouseleave = () => {
+                    tagBtn.style.backgroundColor = "var(--pill-background)";
+                    tagBtn.style.transform = "translateY(0)";
+                    tagBtn.style.boxShadow = "none";
+                };
+
+                // 기존에 만든 성공적인 검색 클릭 로직
+                tagBtn.onclick = async () => {
                     await this.app.commands.executeCommandById("global-search:open");
-                    searchLeaf = this.app.workspace.getLeavesOfType("search")[0];
-                }
-
-                if (searchLeaf && searchLeaf.view) {
-                    const searchView = searchLeaf.view as any;
-
-                    // 4. 검색 결과창으로 시점 전환
-                    this.app.workspace.revealLeaf(searchLeaf);
-
-                    // 5. 검색어 주입 및 실행 (가장 확실한 방법 조합)
-                    try {
-                        // 방법 1: 직접 Query 설정
-                        if (searchView.setQuery) {
-                            searchView.setQuery(query);
-                        }
-
-                        // 방법 2: DOM Input 요소에 강제 주입 (UI 갱신용)
-                        const inputEl = searchView.searchComponent?.inputEl || 
-                                        searchView.containerEl.querySelector("input");
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    
+                    let searchLeaf = this.app.workspace.getLeavesOfType("search")[0];
+                    if (searchLeaf && searchLeaf.view) {
+                        const searchView = searchLeaf.view as any;
+                        this.app.workspace.revealLeaf(searchLeaf);
                         
+                        const query = `"${tag}"`;
+                        if (searchView.setQuery) searchView.setQuery(query);
+                        
+                        const inputEl = searchView.searchComponent?.inputEl || searchView.containerEl.querySelector("input");
                         if (inputEl) {
                             inputEl.value = query;
                             inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                            inputEl.focus();
                         }
-
-                        // 방법 3: 검색 실행 트리거 호출
-                        if (searchView.onQueryChanged) {
-                            searchView.onQueryChanged();
-                        } else if (searchView.startSearch) {
-                            searchView.startSearch();
-                        }
-                    } catch (e) {
-                        console.error("검색어 주입 중 에러 발생:", e);
+                        if (searchView.onQueryChanged) searchView.onQueryChanged();
                     }
-                } else {
-                    new Notice("검색창을 활성화할 수 없습니다. 핵심 플러그인의 'Search'가 켜져 있는지 확인하세요.");
-                }
-            };
-        });
-    }
+                };
+            });
+        }
 
     // 태그를 추출하는 로직 분리
     async getTagCounts(): Promise<Record<string, number>> {
