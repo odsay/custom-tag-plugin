@@ -22,21 +22,32 @@ export class CustomTagView extends ItemView {
 
     async render() {
         const container = this.containerEl.children[1] as HTMLElement;
+        container.style.padding = "0px"; // 패딩 최소화
+        container.style.overflowX = "hidden"; // 가로 스크롤 방지
         if (!container) return;
         container.empty();
 
-        // --- 1. 컨트롤 영역 (필터 및 정렬) ---
-        const controlsContainer = container.createEl("div", { style: "margin-bottom: 5px; display: flex; flex-direction: column; gap: 20px;" });
+        // 사이드바 너비를 강제로 100%로 고정
+        container.style.width = "100%"; 
+        container.style.minWidth = "100%";
+        container.style.display = "block";
+
+        // --- 1. 컨트롤 영역 ---
+        const controlsContainer = container.createEl("div", { 
+            style: "margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; width: 100%;" 
+        });
         
-        // 기호 필터 버튼 그룹
-        const filterGroup = controlsContainer.createEl("div", { style: "display: flex; gap: 10px;" });
+        const filterGroup = controlsContainer.createEl("div", { 
+            style: "display: flex; gap: 4px; flex-wrap: wrap; width: 100%;" 
+        });
+        
         const symbols: ("ALL" | "ㄱ" | "ㄴ" | "ㄷ" | "ㄹ" | "ㅁ" | "ㅂ" | "ㅅ" | "ㅇ" | "ㅈ" | "ㅊ" | "ㅋ" | "ㅌ" | "ㅍ" | "ㅎ")[] = ["ALL", "ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ" , "ㅂ" , "ㅅ" , "ㅇ" , "ㅈ" , "ㅊ" , "ㅋ" , "ㅌ" , "ㅍ" , "ㅎ"];
         
         symbols.forEach(sym => {
             const btn = filterGroup.createEl("button", {
                 text: sym,
-                style: `flex: 1; font-size: 0.7em; padding: 4px; cursor: pointer; 
-                        ${this.activeSymbol === sym ? "background-color: var(--text-accent); color: white;":""}`
+                style: `font-size: 0.7em; padding: 2px 6px; cursor: pointer; min-width: 30px;
+                        ${this.activeSymbol === sym ? "background-color: var(--text-accent); color: white;" : ""}`
             });
             btn.onclick = () => {
                 this.activeSymbol = sym;
@@ -44,7 +55,6 @@ export class CustomTagView extends ItemView {
             };
         });
 
-        // 정렬 토글 버튼
         const sortBtn = controlsContainer.createEl("button", {
             text: this.sortBy === "frequency" ? "🔢 빈도순 정렬" : "🔤 이름순 정렬",
             style: "width: 100%; font-size: 0.75em; padding: 5px; cursor: pointer;"
@@ -58,12 +68,10 @@ export class CustomTagView extends ItemView {
         const tagCounts = await this.getTagCounts();
         let tagEntries = Object.entries(tagCounts);
 
-        // 기호 필터 적용
         if (this.activeSymbol !== "ALL") {
             tagEntries = tagEntries.filter(([tag]) => tag.startsWith(this.activeSymbol));
         }
 
-        // 정렬 적용
         if (this.sortBy === "frequency") {
             tagEntries.sort((a, b) => b[1] - a[1]);
         } else {
@@ -71,7 +79,11 @@ export class CustomTagView extends ItemView {
         }
 
         // --- 3. 리스트 렌더링 ---
-        const listEl = container.createEl("div", { style: "display: flex; flex-wrap: wrap; gap: 8px;" });
+        // [수정] listEl이 가로를 무조건 꽉 채우도록 display: flex 사용
+        // listEl이 자식들을 아래로 떨어뜨리지 못하게 강제함
+        const listEl = container.createEl("div", { 
+            style: "display: flex; flex-direction: column; width: 100%; align-items: stretch;" 
+        });
 
         if (tagEntries.length === 0) {
             listEl.createEl("p", { text: "검색된 태그가 없습니다.", style: "color: var(--text-faint); font-size: 0.8em;" });
@@ -79,21 +91,71 @@ export class CustomTagView extends ItemView {
         }
 
         tagEntries.forEach(([tag, count]) => {
+            // 1. 버튼 역할을 할 div (기존 스타일 유지)
             const tagBtn = listEl.createEl("div", {
-                style: "cursor: pointer; background: var(--pill-background); border: 1px solid var(--pill-border); border-radius: var(--pill-radius); padding: 4px 10px; display: flex; align-items: center; gap: 6px; font-size: 0.85em;"
+                style: `
+                    cursor: pointer; 
+                    background: var(--pill-background); 
+                    border: 1px solid var(--pill-border); 
+                    border-radius: var(--pill-radius); 
+                    padding: 4px 8px; 
+                    margin-bottom: 4px;
+                    width: 100%;
+                    box-sizing: border-box;
+                `
             });
+
+            // 2. 물리적으로 좌우를 나눌 테이블 생성 (가장 확실한 방법)
+            const table = tagBtn.createEl("table", { 
+                style: "width: 100%; border-collapse: collapse; table-layout: fixed;" 
+            });
+            const tr = table.createEl("tr");
 
             let color = "var(--text-accent)";
             if (tag.startsWith("ㄴ")) color = "#e67e22";
             if (tag.startsWith("ㄷ")) color = "#27ae60";
 
-            tagBtn.createSpan({ text: tag, style: `color: ${color}; font-weight: bold;` });
-            tagBtn.createSpan({ text: `${count}`, style: "opacity: 0.6; font-size: 0.8em;" });
+            // 왼쪽 칸: 태그 이름
+            const tdName = tr.createEl("td", {
+                style: `
+                    text-align: left;
+                    vertical-align: middle;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    color: ${color};
+                    font-weight: 600;
+                    font-size: 0.9em;
+                `
+            });
+            tdName.setText(tag);
+
+            // 오른쪽 칸: 숫자 (너비를 최소한으로 잡고 우측 정렬)
+            const tdCount = tr.createEl("td", {
+                style: `
+                    text-align: right;
+                    vertical-align: middle;
+                    width: 40px; /* 숫자 영역 너비 고정 */
+                `
+            });
+            
+            tdCount.createSpan({
+                text: `${count}`,
+                style: `
+                    color: var(--text-muted);
+                    background-color: var(--background-secondary-alt);
+                    padding: 1px 6px;
+                    border-radius: 8px;
+                    font-size: 0.75em;
+                    display: inline-block;
+                `
+            });
 
             tagBtn.onclick = () => this.executeSearch(tag);
         });
     }
 
+    
     async getTagCounts(): Promise<Record<string, number>> {
         const files = this.app.vault.getMarkdownFiles();
         const tagCounts: Record<string, number> = {};
