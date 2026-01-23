@@ -26,7 +26,7 @@ export class CustomTagView extends ItemView {
         container.empty();
 
         // --- 1. 컨트롤 영역 (필터 및 정렬) ---
-        const controlsContainer = container.createEl("div", { style: "margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;" });
+        const controlsContainer = container.createEl("div", { style: "margin-bottom: 5px; display: flex; flex-direction: column; gap: 20px;" });
         
         // 기호 필터 버튼 그룹
         const filterGroup = controlsContainer.createEl("div", { style: "display: flex; gap: 10px;" });
@@ -36,7 +36,7 @@ export class CustomTagView extends ItemView {
             const btn = filterGroup.createEl("button", {
                 text: sym,
                 style: `flex: 1; font-size: 0.7em; padding: 4px; cursor: pointer; 
-                        ${this.activeSymbol === sym ? "background-color: var(--text-accent); color: white;" : ""}`
+                        ${this.activeSymbol === sym ? "background-color: var(--text-accent); color: white;":""}`
             });
             btn.onclick = () => {
                 this.activeSymbol = sym;
