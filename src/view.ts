@@ -4,7 +4,7 @@ export const VIEW_TYPE_CUSTOM_TAGS = "custom-tag-stats-view";
 
 export class CustomTagView extends ItemView {
     private sortBy: "frequency" | "name" = "frequency";
-    private activeSymbol: "$" | "&" | "%" | "ALL" = "ALL"; // 필터 상태 추가
+    private activeSymbol: "ㄱ" | "ㄴ" | "ㄷ" | "ㄹ" | "ㅁ" | "ㅂ" | "ㅅ" | "ㅇ" | "ㅈ" | "ㅊ" | "ㅋ" | "ㅌ" | "ㅍ" | "ㅎ" | "ALL" = "ALL"; // 필터 상태 추가
 
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
@@ -30,7 +30,7 @@ export class CustomTagView extends ItemView {
         
         // 기호 필터 버튼 그룹
         const filterGroup = controlsContainer.createEl("div", { style: "display: flex; gap: 10px;" });
-        const symbols: ("ALL" | "$" | "&" | "%")[] = ["ALL", "$", "&", "%"];
+        const symbols: ("ALL" | "ㄱ" | "ㄴ" | "ㄷ" | "ㄹ" | "ㅁ" | "ㅂ" | "ㅅ" | "ㅇ" | "ㅈ" | "ㅊ" | "ㅋ" | "ㅌ" | "ㅍ" | "ㅎ")[] = ["ALL", "ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ" , "ㅂ" , "ㅅ" , "ㅇ" , "ㅈ" , "ㅊ" , "ㅋ" , "ㅌ" , "ㅍ" , "ㅎ"];
         
         symbols.forEach(sym => {
             const btn = filterGroup.createEl("button", {
@@ -84,8 +84,8 @@ export class CustomTagView extends ItemView {
             });
 
             let color = "var(--text-accent)";
-            if (tag.startsWith("&")) color = "#e67e22";
-            if (tag.startsWith("%")) color = "#27ae60";
+            if (tag.startsWith("ㄴ")) color = "#e67e22";
+            if (tag.startsWith("ㄷ")) color = "#27ae60";
 
             tagBtn.createSpan({ text: tag, style: `color: ${color}; font-weight: bold;` });
             tagBtn.createSpan({ text: `${count}`, style: "opacity: 0.6; font-size: 0.8em;" });
@@ -97,7 +97,7 @@ export class CustomTagView extends ItemView {
     async getTagCounts(): Promise<Record<string, number>> {
         const files = this.app.vault.getMarkdownFiles();
         const tagCounts: Record<string, number> = {};
-        const regex = /([\$&%])\.([^\s]+)/gu; // 지난번 수정한 안전한 정규표현식
+        const regex = /([ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ])\.([^\s]+)/gu; // 지난번 수정한 안전한 정규표현식
 
         for (const file of files) {
             const content = await this.app.vault.cachedRead(file);
