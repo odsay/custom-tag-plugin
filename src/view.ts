@@ -91,63 +91,67 @@ export class CustomTagView extends ItemView {
         }
 
         tagEntries.forEach(([tag, count]) => {
-            // 1. 버튼 역할을 할 div (기존 스타일 유지)
+            // 1. 전체 버튼 컨테이너
             const tagBtn = listEl.createEl("div", {
                 style: `
                     cursor: pointer; 
                     background: var(--pill-background); 
                     border: 1px solid var(--pill-border); 
                     border-radius: var(--pill-radius); 
-                    padding: 4px 8px; 
-                    margin-bottom: 4px;
+                    margin-bottom: 6px;
                     width: 100%;
+                    height: 36px; /* 높이를 고정하여 줄바꿈 여지를 차단 */
+                    position: relative; 
                     box-sizing: border-box;
+                    overflow: hidden;
                 `
             });
-
-            // 2. 물리적으로 좌우를 나눌 테이블 생성 (가장 확실한 방법)
-            const table = tagBtn.createEl("table", { 
-                style: "width: 100%; border-collapse: collapse; table-layout: fixed;" 
-            });
-            const tr = table.createEl("tr");
 
             let color = "var(--text-accent)";
             if (tag.startsWith("ㄴ")) color = "#e67e22";
             if (tag.startsWith("ㄷ")) color = "#27ae60";
 
-            // 왼쪽 칸: 태그 이름
-            const tdName = tr.createEl("td", {
+            // 2. 왼쪽 레이어: 태그 이름
+            tagBtn.createEl("div", {
+                text: tag,
                 style: `
-                    text-align: left;
-                    vertical-align: middle;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
+                    position: absolute;
+                    left: 12px;
+                    top: 0;
+                    bottom: 0;
+                    right: 50px; /* 숫자와 겹치지 않게 오른쪽 공간 확보 */
+                    display: flex;
+                    align-items: center; /* 세로 중앙 */
                     color: ${color};
                     font-weight: 600;
-                    font-size: 0.9em;
+                    font-size: 0.85em;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 `
             });
-            tdName.setText(tag);
 
-            // 오른쪽 칸: 숫자 (너비를 최소한으로 잡고 우측 정렬)
-            const tdCount = tr.createEl("td", {
+            // 3. 오른쪽 레이어: 숫자 배지
+            const countContainer = tagBtn.createEl("div", {
                 style: `
-                    text-align: right;
-                    vertical-align: middle;
-                    width: 40px; /* 숫자 영역 너비 고정 */
+                    position: absolute;
+                    right: 10px;
+                    top: 0;
+                    bottom: 0;
+                    display: flex;
+                    align-items: center; /* 세로 중앙 */
                 `
             });
-            
-            tdCount.createSpan({
+
+            countContainer.createSpan({
                 text: `${count}`,
                 style: `
                     color: var(--text-muted);
                     background-color: var(--background-secondary-alt);
-                    padding: 1px 6px;
-                    border-radius: 8px;
-                    font-size: 0.75em;
-                    display: inline-block;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    font-size: 0.7em;
+                    font-weight: bold;
                 `
             });
 
