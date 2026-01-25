@@ -66,21 +66,21 @@ export const TagStatsComponent = ({
                                 display: "flex",
                                 justifyContent: "space-between", // 좌우 끝으로 밀기
                                 alignItems: "center",
-                                padding: "6px 12px",
+                                padding: "0px 6px",
                                 background: "var(--pill-background)",
                                 border: "1px solid var(--pill-border)",
                                 borderRadius: "var(--pill-radius)",
                                 cursor: "pointer"
                             }}
                         >
-                            <span style={{ color, fontWeight: 600, fontSize: "0.9em" }}>{tag}</span>
+                            <span style={{ color, fontWeight: 300, fontSize: "0.9em" }}>{tag}</span>
                             <span style={{
                                 color: "var(--text-muted)",
                                 backgroundColor: "var(--background-secondary-alt)",
-                                padding: "2px 8px",
+                                padding: "2px 4px",
                                 borderRadius: "10px",
                                 fontSize: "0.75em",
-                                fontWeight: "bold"
+                                fontWeight: "none"
                             }}>{count}</span>
                         </div>
                     );
