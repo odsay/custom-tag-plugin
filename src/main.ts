@@ -1,114 +1,113 @@
 import { EditorSuggest, Editor, EditorPosition, TFile, EditorSuggestContext, EditorSuggestTriggerInfo, Plugin } from "obsidian";
+import * as cmView from "@codemirror/view";
+import * as cmState from "@codemirror/state";
 import { CustomTagView, VIEW_TYPE_CUSTOM_TAGS } from "./view";
 
-// 자동완성 제안 클래스
+// 1. 자동완성 제안 클래스
 class CustomTagSuggest extends EditorSuggest<{tag: string, count: number}> {
-    plugin: any;
-
-    constructor(app: any, plugin: any) {
-        super(app);
-        this.plugin = plugin;
-    }
-
-    // CustomTagSuggest 클래스 내부 수정
-    onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
+    constructor(app: any) { super(app); }
+    onTrigger(cursor: EditorPosition, editor: Editor): EditorSuggestTriggerInfo | null {
         const line = editor.getLine(cursor.line);
         const sub = line.substring(0, cursor.ch);
-        
-        // 마지막에 입력된 "자음." 패턴을 찾습니다.
         const match = sub.match(/([ㄱ-ㅎ]\.)([^\s]*)$/);
-        if (match) {
-            return {
-                start: { line: cursor.line, ch: sub.lastIndexOf(match[1]) },
-                end: cursor,
-                query: match[1] + match[2] // "ㄱ." + "입력값" 전체를 쿼리로 보냅니다.
-            };
-        }
+        if (match) return { start: { line: cursor.line, ch: sub.lastIndexOf(match[1]) }, end: cursor, query: match[1] + match[2] };
         return null;
     }
-
-    async getSuggestions(context: EditorSuggestContext): Promise<{tag: string, count: number}[]> {
-        const view = this.app.workspace.getLeavesOfType("custom-tag-stats-view")[0]?.view as any;
+    async getSuggestions(context: EditorSuggestContext) {
+        const view = this.app.workspace.getLeavesOfType(VIEW_TYPE_CUSTOM_TAGS)[0]?.view as any;
         if (!view) return [];
-
         const tagCounts = await view.getTagCounts();
-        const fullQuery = context.query; // 이제 "ㄱ.서" 전체가 들어옵니다.
-
-        return Object.entries(tagCounts)
-            .map(([tag, count]) => ({ tag, count: count as number }))
-            // 입력한 자음(ㄱ.)으로 시작하는 것만 1차 필터링 후, 나머지 글자로 2차 필터링
-            .filter(item => item.tag.startsWith(fullQuery)) 
-            .sort((a, b) => b.count - a.count);
+        return Object.entries(tagCounts).map(([tag, count]) => ({ tag, count: count as number }))
+            .filter(item => item.tag.startsWith(context.query)).sort((a, b) => b.count - a.count);
     }
-
-    // 팝업 화면 그리기
-    renderSuggestion(item: {tag: string, count: number}, el: HTMLElement): void {
+    renderSuggestion(item: any, el: HTMLElement) {
         el.addClass("custom-tag-suggestion-item");
-        el.style.display = "flex";
-        el.style.justifyContent = "space-between";
-        el.style.width = "100%";
-        el.style.gap = "20px";
-
-        // 왼쪽: 태그 이름
-        el.createSpan({ 
-            text: item.tag, 
-            style: "color: var(--text-accent); font-weight: 500;" 
-        });
-
-        // 오른쪽: 빈도수 배지
-        el.createSpan({ 
-            text: `${item.count}`, 
-            style: "opacity: 0.5; font-size: 0.8em; font-family: var(--font-mono);" 
-        });
+        el.createSpan({ text: item.tag, style: "color: var(--text-accent); font-weight: 500;" });
     }
-
-    selectSuggestion(item: {tag: string, count: number}, evt: MouseEvent | KeyboardEvent): void {
-        const { context } = this;
-        if (context) {
-            context.editor.replaceRange(item.tag, context.start, context.end);
-        }
-    }
+    selectSuggestion(item: any) { if (this.context) this.context.editor.replaceRange(item.tag, this.context.start, this.context.end); }
 }
 
+// 2. 메인 플러그인 클래스
 export default class CustomTagPlugin extends Plugin {
     async onload() {
-        // 1. View 등록
-        this.registerView(
-            VIEW_TYPE_CUSTOM_TAGS,
-            (leaf) => new CustomTagView(leaf)
-        );
+        console.log("Custom Tag Plugin Loading...");
 
-        // 2. 명령어로 사이드바 열기 추가 (Ctrl + P 메뉴에서 실행 가능)
-        this.addCommand({
-            id: "show-custom-tag-stats",
-            name: "Show Custom Tag Stats",
-            callback: () => this.activateView(),
+        this.registerView(VIEW_TYPE_CUSTOM_TAGS, (leaf) => new CustomTagView(leaf));
+        this.registerEditorSuggest(new CustomTagSuggest(this.app));
+
+        // --- 편집 모드 스타일링 (StateField) ---
+        const self = this;
+        const customTagField = cmState.StateField.define<cmView.DecorationSet>({
+            create(state) {
+                return self.buildDecorations(state);
+            },
+            update(oldState, transaction) {
+                if (transaction.docChanged) return self.buildDecorations(transaction.state);
+                return oldState.map(transaction.changes);
+            },
+            provide(field) {
+                return cmView.EditorView.decorations.from(field);
+            }
         });
 
-        // 3. 리본 아이콘 추가 (왼쪽 바에 아이콘 클릭 시 사이드바 열림)
-        this.addRibbonIcon("hash", "Custom Tag Stats", () => {
-            this.activateView();
+        this.registerEditorExtension(customTagField);
+
+        // --- 읽기 모드 스타일링 ---
+        this.registerMarkdownPostProcessor((element) => {
+            const regex = /([ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ])\.([^\s\n\r]+)/gu;
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            let node;
+            while (node = walker.nextNode() as Text) {
+                if (regex.test(node.textContent || "")) {
+                    const span = document.createElement("span");
+                    span.innerHTML = node.textContent!.replace(regex, (match, p1) => {
+                        let color = "var(--text-accent)";
+                        if (p1 === "ㄱ") color = "#27ae60";
+                        else if (p1 === "ㄴ") color = "#e67e22";
+                        return `<span style="color: ${color}; background-color: ${color}22; padding: 0px 4px; border-radius: 4px; font-weight: 400;">${match}</span>`;
+                    });
+                    node.parentElement?.replaceChild(span, node);
+                }
+            }
         });
 
-        // 자동완성 등록
-        this.registerEditorSuggest(new CustomTagSuggest(this.app, this));
+        this.addRibbonIcon("hash", "Custom Tag Stats", () => this.activateView());
+    }
+
+    // 데코레이션 생성 핵심 로직
+    buildDecorations(state: cmState.EditorState): cmView.DecorationSet {
+        // [중요 수정] RangeSetBuilder는 최신 버전에서 cmState에 있습니다.
+        const RangeSetBuilderClass = (cmState as any).RangeSetBuilder || (cmView as any).RangeSetBuilder;
+        const builder = new RangeSetBuilderClass();
+        
+        const regex = /([ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ])\.([^\s\n\r]+)/gu;
+        const text = state.doc.toString();
+        let match;
+
+        while ((match = regex.exec(text)) !== null) {
+            const start = match.index;
+            const end = start + match[0].length;
+            const consonant = match[1];
+
+            let color = "var(--text-accent)";
+            if (consonant === "ㄱ") color = "#27ae60";
+            else if (consonant === "ㄴ") color = "#e67e22";
+
+            builder.add(start, end, cmView.Decoration.mark({
+                attributes: { 
+                    style: `background-color: ${color}22; color: ${color}; border-radius: 4px; padding: 0px 4px; font-weight: 400;` 
+                }
+            }));
+        }
+        return builder.finish();
     }
 
     async activateView() {
-        const { workspace } = this.app;
-
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_CUSTOM_TAGS)[0];
-
+        let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CUSTOM_TAGS)[0];
         if (!leaf) {
-            // 우측 사이드바에 새로운 슬롯(Leaf) 생성
-            leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({
-                type: VIEW_TYPE_CUSTOM_TAGS,
-                active: true,
-            });
+            leaf = this.app.workspace.getRightLeaf(false);
+            await leaf.setViewState({ type: VIEW_TYPE_CUSTOM_TAGS, active: true });
         }
-
-        // 해당 View로 포커스 이동
-        workspace.revealLeaf(leaf);
+        this.app.workspace.revealLeaf(leaf);
     }
 }

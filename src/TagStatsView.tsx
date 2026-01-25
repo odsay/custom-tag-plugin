@@ -25,7 +25,7 @@ export const TagStatsComponent = ({
     );
 
     return (
-        <div style={{ padding: "10px", width: "100%" }}>
+        <div style={{ padding: "0px", width: "100%" }}>
             {/* 필터 버튼 */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "10px" }}>
                 {symbols.map(sym => (
@@ -54,9 +54,9 @@ export const TagStatsComponent = ({
             {/* 태그 리스트 */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {tagEntries.map(([tag, count]) => {
-                    let color = "var(--text-accent)";
+                    let color = "var(--text-normal)";
+                    if (tag.startsWith("ㄱ")) color = "#27ae60";
                     if (tag.startsWith("ㄴ")) color = "#e67e22";
-                    if (tag.startsWith("ㄷ")) color = "#27ae60";
 
                     return (
                         <div 
